@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Checkout | Target Darts Trade Portal</title>
+  </head>
+  <body
+    x-data="{
+      page: 'buyerCheckout',
+      loaded: true,
+      darkMode: false,
+      step: 1,
+      lines: TD.cart.lines(),
+      addresses: [
+        { id: 'shop', label: 'Shop', text: TD.buyer.company + ', 14 Lichfield Street, Hanley, Stoke-on-Trent, ST1 3EA' },
+        { id: 'warehouse', label: 'Warehouse', text: TD.buyer.company + ', Unit 7 Etruria Trade Park, Stoke-on-Trent, ST4 7AS' },
+      ],
+      address: 'shop',
+      service: 'standard',
+      po: '',
+      notes: '',
+      placed: null,
+      get subtotal() { return TD.cart.total(); },
+      get delivery() { return this.service === 'next' ? 14.95 : (this.subtotal >= 250 ? 0 : 9.95); },
+      get vat() { return (this.subtotal + this.delivery) * 0.2; },
+      get total() { return this.subtotal + this.delivery + this.vat; },
+      get addressText() { return this.addresses.find(a => a.id === this.address).text; },
+      place() {
+        this.placed = { id: 'TD-B2B-' + (20481 + Math.floor(Math.random() * 40)), total: this.total, lines: this.lines.length, po: this.po || 'Not supplied' };
+        TD.cart.clear();
+        this.step = 3;
+        window.scrollTo(0, 0);
+      },
+    }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex min-h-screen flex-col bg-white dark:bg-gray-900">
+      <include src="./partials/buyer-nav.html"></include>
+
+      <main class="flex-1 py-8">
+        <div class="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
+          <h1 class="td-title text-4xl font-semibold text-gray-900 dark:text-white" x-text="step === 3 ? 'Order placed' : 'Checkout'"></h1>
+
+          <!-- steps -->
+          <ol class="mt-6 mb-8 flex items-center gap-3 text-xs font-semibold tracking-wider uppercase">
+            <template x-for="(s, i) in ['Delivery', 'Review', 'Confirmation']" :key="s">
+              <li class="flex items-center gap-3">
+                <span :class="step >= i + 1 ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-gray-200 text-gray-500'" class="flex h-7 w-7 items-center justify-center rounded-full" x-text="i + 1"></span>
+                <span :class="step >= i + 1 ? 'text-gray-900 dark:text-white' : 'text-gray-400'" x-text="s"></span>
+                <span x-show="i < 2" class="h-px w-10 bg-gray-300"></span>
+              </li>
+            </template>
+          </ol>
+
+          <!-- confirmation -->
+          <div x-show="step === 3" class="bg-[#f4f4f4] p-10 text-center dark:bg-gray-800" style="display: none">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-white">
+              <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <p class="font-display mt-4 text-3xl tracking-wide text-gray-900 uppercase dark:text-white">Thank you, order received</p>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Order <strong x-text="placed && placed.id"></strong> for <strong x-text="placed && TD.gbp(placed.total)"></strong> inc VAT has been sent to Target's ERP for allocation.</p>
+            <p class="mt-1 text-sm text-gray-500">PO reference: <span x-text="placed && placed.po"></span>. A confirmation email is on its way.</p>
+            <div class="mt-8 flex justify-center gap-3">
+              <a href="buyer-orders.html" class="bg-ink px-6 py-3 text-xs font-semibold tracking-wider text-white uppercase">View my orders</a>
+              <a href="buyer-products.html" class="border border-gray-900 px-6 py-3 text-xs font-semibold tracking-wider uppercase dark:border-white dark:text-white">Keep shopping</a>
+            </div>
+          </div>
+
+          <div x-show="step < 3" class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <div class="space-y-6 lg:col-span-2">
+              <!-- step 1 -->
+              <section x-show="step === 1" class="space-y-6">
+                <div>
+                  <h2 class="td-heading mb-3 text-xl text-gray-900 dark:text-white">Delivery address</h2>
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <template x-for="a in addresses" :key="a.id">
+                      <label :class="address === a.id ? 'border-ink ring-1 ring-ink dark:border-white dark:ring-white' : 'border-gray-300 dark:border-gray-700'" class="cursor-pointer border p-4">
+                        <input type="radio" class="sr-only" :value="a.id" x-model="address" />
+                        <p class="text-xs font-bold tracking-wider text-gray-500 uppercase" x-text="a.label"></p>
+                        <p class="mt-1 text-sm text-gray-800 dark:text-gray-200" x-text="a.text"></p>
+                      </label>
+                    </template>
+                  </div>
+                </div>
+                <div>
+                  <h2 class="td-heading mb-3 text-xl text-gray-900 dark:text-white">Delivery service</h2>
+                  <div class="space-y-2">
+                    <label :class="service === 'standard' ? 'border-ink dark:border-white' : 'border-gray-300 dark:border-gray-700'" class="flex cursor-pointer items-center justify-between border p-4 text-sm dark:text-gray-200">
+                      <span><input type="radio" value="standard" x-model="service" class="mr-2 text-brand-500" /> Standard trade delivery, 2 to 3 working days</span>
+                      <span class="font-semibold" x-text="subtotal >= 250 ? 'Free' : TD.gbp(9.95)"></span>
+                    </label>
+                    <label :class="service === 'next' ? 'border-ink dark:border-white' : 'border-gray-300 dark:border-gray-700'" class="flex cursor-pointer items-center justify-between border p-4 text-sm dark:text-gray-200">
+                      <span><input type="radio" value="next" x-model="service" class="mr-2 text-brand-500" /> Next working day, order by 3pm</span>
+                      <span class="font-semibold">£14.95</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <label class="text-sm text-gray-700 dark:text-gray-300">Your PO number
+                    <input x-model="po" placeholder="e.g. PO-4471" class="mt-1 h-11 w-full border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800" />
+                  </label>
+                  <label class="text-sm text-gray-700 dark:text-gray-300">Delivery notes
+                    <input x-model="notes" placeholder="e.g. Shop closed Mondays" class="mt-1 h-11 w-full border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800" />
+                  </label>
+                </div>
+                <button @click="step = 2; window.scrollTo(0,0)" :disabled="!lines.length" class="bg-ink px-8 py-3.5 text-xs font-bold tracking-wider text-white uppercase disabled:opacity-40">Continue to review</button>
+                <p x-show="!lines.length" class="text-sm text-gray-500">Your basket is empty. <a href="buyer-products.html" class="underline">Shop trade</a></p>
+              </section>
+
+              <!-- step 2 -->
+              <section x-show="step === 2" class="space-y-6" style="display: none">
+                <div class="grid gap-4 bg-[#f4f4f4] p-5 text-sm sm:grid-cols-3 dark:bg-gray-800 dark:text-gray-300">
+                  <div><p class="text-xs font-bold tracking-wider text-gray-500 uppercase">Deliver to</p><p class="mt-1" x-text="addressText"></p></div>
+                  <div><p class="text-xs font-bold tracking-wider text-gray-500 uppercase">Service</p><p class="mt-1" x-text="service === 'next' ? 'Next working day' : 'Standard, 2 to 3 days'"></p></div>
+                  <div><p class="text-xs font-bold tracking-wider text-gray-500 uppercase">PO / payment</p><p class="mt-1" x-text="(po || 'No PO') + ' / on account, ' + TD.buyer.terms"></p></div>
+                </div>
+                <div>
+                  <h2 class="td-heading mb-3 text-xl text-gray-900 dark:text-white" x-text="'Order lines (' + lines.length + ')'"></h2>
+                  <template x-for="l in lines" :key="l.key">
+                    <div class="flex items-center gap-4 border-b border-gray-200 py-3 dark:border-gray-800">
+                      <img :src="l.product.image" :alt="l.product.name" class="h-16 w-16 bg-[#f4f4f4] object-contain mix-blend-multiply dark:mix-blend-normal" />
+                      <div class="flex-1">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="l.product.name + (l.variant ? ' (' + l.variant + ')' : '')"></p>
+                        <p class="text-xs text-gray-500" x-text="l.qty + ' x ' + TD.gbp(l.price) + ' · SKU ' + l.sku"></p>
+                      </div>
+                      <p class="font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(l.lineTotal)"></p>
+                    </div>
+                  </template>
+                </div>
+                <div class="flex gap-3">
+                  <button @click="step = 1" class="border border-gray-900 px-6 py-3.5 text-xs font-semibold tracking-wider uppercase dark:border-white dark:text-white">Back</button>
+                  <button @click="place()" class="bg-brand-500 px-8 py-3.5 text-xs font-bold tracking-wider text-white uppercase hover:bg-brand-600">Place order</button>
+                </div>
+              </section>
+            </div>
+
+            <aside>
+              <div class="sticky top-32 bg-[#f4f4f4] p-6 dark:bg-gray-800">
+                <h2 class="td-heading mb-4 text-xl text-gray-900 dark:text-white">Summary</h2>
+                <dl class="space-y-2 text-sm">
+                  <div class="flex justify-between"><dt class="text-gray-600 dark:text-gray-400" x-text="'Goods, ' + lines.length + ' lines'"></dt><dd class="font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(subtotal)"></dd></div>
+                  <div class="flex justify-between"><dt class="text-gray-600 dark:text-gray-400">Delivery</dt><dd class="font-semibold text-gray-900 dark:text-white" x-text="delivery ? TD.gbp(delivery) : 'Free'"></dd></div>
+                  <div class="flex justify-between"><dt class="text-gray-600 dark:text-gray-400">VAT 20%</dt><dd class="text-gray-900 dark:text-white" x-text="TD.gbp(vat)"></dd></div>
+                  <div class="flex justify-between border-t border-gray-300 pt-3 text-base dark:border-gray-600"><dt class="font-bold text-gray-900 dark:text-white">Total</dt><dd class="font-bold text-gray-900 dark:text-white" x-text="TD.gbp(total)"></dd></div>
+                </dl>
+                <p class="mt-4 text-xs text-gray-500">Charged to your trade account (<span x-text="TD.buyer.companyId"></span>) on <span x-text="TD.buyer.terms"></span> terms.</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+
+      <include src="./partials/buyer-footer.html"></include>
+    </div>
+  </body>
+</html>

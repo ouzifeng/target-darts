@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Trade Login | Target Darts Trade Portal</title>
+  </head>
+  <body
+    x-data="{ page: 'b2bLogin', loaded: true, darkMode: false, email: TD.buyer.email, password: 'demo-password', busy: false }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="grid min-h-screen lg:grid-cols-2">
+      <!-- form -->
+      <div class="flex flex-col justify-between bg-white px-6 py-8 sm:px-12 dark:bg-gray-900">
+        <img src="./images/target-logo.png" alt="Target Darts" class="h-auto w-40 dark:invert" />
+        <div class="mx-auto w-full max-w-md py-12">
+          <p class="text-xs font-semibold tracking-[0.25em] text-brand-600 uppercase">Stockist trade portal</p>
+          <h1 class="font-display mt-2 text-5xl leading-none tracking-wide text-gray-900 uppercase dark:text-white">Sign in to trade</h1>
+          <p class="mt-3 text-gray-600 dark:text-gray-400">Live trade prices, stock and order tracking for authorised Target stockists.</p>
+          <form class="mt-8 space-y-4" @submit.prevent="busy = true; setTimeout(() => window.location.href = 'buyer-dashboard.html', 500)">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email
+              <input type="email" x-model="email" required class="mt-1 h-12 w-full border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+            </label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password
+              <input type="password" x-model="password" required class="mt-1 h-12 w-full border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+            </label>
+            <div class="flex items-center justify-between text-sm">
+              <label class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><input type="checkbox" checked class="rounded-sm text-brand-500" /> Keep me signed in</label>
+              <a href="#" class="text-gray-600 underline dark:text-gray-400">Forgotten password?</a>
+            </div>
+            <button type="submit" class="h-12 w-full bg-ink text-sm font-bold tracking-wider text-white uppercase hover:bg-brand-500 dark:bg-brand-500" x-text="busy ? 'Signing in...' : 'Sign in'"></button>
+          </form>
+          <div class="mt-8 border-t border-gray-200 pt-6 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-400">
+            <p>Not a stockist yet? <a href="#" class="font-semibold text-brand-600 hover:underline">Apply for a trade account</a></p>
+            <p class="mt-2">Target staff? <a href="signin.html" class="font-semibold text-gray-900 hover:underline dark:text-white">Sign in to the admin panel</a></p>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400">&copy; 2026 Target Darts &middot; Demo portal by B2BWare</p>
+      </div>
+
+      <!-- visual -->
+      <div class="relative hidden overflow-hidden bg-ink lg:block">
+        <img src="./images/product/target/11117-3.webp" alt="Luke Littler, 2025 PDC World Darts Champion" class="absolute inset-0 h-full w-full object-cover opacity-90" />
+        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent p-12 pt-32 text-white">
+          <p class="font-display text-4xl leading-tight tracking-wide uppercase">761 products. One trade account.</p>
+          <p class="mt-2 max-w-md text-white/70">Darts, flights, shafts, boards and lighting from the players your customers follow, ordered in minutes.</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

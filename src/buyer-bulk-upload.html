@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Quick Order | Target Darts Trade Portal</title>
+  </head>
+  <body
+    x-data="{
+      page: 'buyerBulkUpload',
+      loaded: true,
+      darkMode: false,
+      step: 1,
+      text: '',
+      fileName: '',
+      rows: [],
+      done: '',
+      sample: 'sku,quantity,option\n11117,6,22g\n11117,6,24g\n11191,4,23g\n11164,20,\n18016,25,\n440110,3,\n13143,15,\n99999,5,\n17008,10,',
+      parse(src) {
+        const lines = src.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length && /sku/i.test(lines[0])) lines.shift();
+        this.rows = lines.map((l, n) => {
+          const [sku, q, opt] = l.split(/[,;\t]/).map(x => (x || '').trim());
+          const p = TD.bySku[sku];
+          const qty = parseInt(q, 10) || 0;
+          const row = { n: n + 1, sku, qty, opt: opt || '', p, status: 'ok', msg: '' };
+          if (!p) { row.status = 'error'; row.msg = 'SKU not found in your price list'; return row; }
+          if (!qty) { row.status = 'error'; row.msg = 'Missing quantity'; return row; }
+          if (p.variants.length) {
+            const vals = p.variants[0].values;
+            if (!row.opt) { row.opt = vals[0]; row.status = 'warn'; row.msg = 'No ' + p.variants[0].name.toLowerCase() + ' given, defaulted to ' + vals[0]; }
+            else if (!vals.includes(row.opt)) { row.status = 'error'; row.msg = row.opt + ' not available (' + vals.join(', ') + ')'; return row; }
+          }
+          if (qty % p.moq) { row.qty = Math.ceil(qty / p.moq) * p.moq; row.status = 'warn'; row.msg = 'Rounded up to outer of ' + p.moq; }
+          if (p.stock === 0) { row.status = 'warn'; row.msg = 'Out of stock, will be back ordered'; }
+          else if (p.stock < row.qty) { row.status = 'warn'; row.msg = 'Only ' + p.stock + ' in stock, balance back ordered'; }
+          return row;
+        });
+        this.step = 2;
+      },
+      readFile(e) {
+        const f = e.target.files[0]; if (!f) return;
+        this.fileName = f.name;
+        const r = new FileReader(); r.onload = () => this.parse(r.result); r.readAsText(f);
+      },
+      get valid() { return this.rows.filter(r => r.status !== 'error'); },
+      get errors() { return this.rows.filter(r => r.status === 'error'); },
+      price(r) { return TD.netPrice(r.p, TD.buyer.discount, r.qty); },
+      get total() { return this.valid.reduce((s, r) => s + this.price(r) * r.qty, 0); },
+      addAll() {
+        this.valid.forEach(r => TD.cart.add(r.sku, r.qty, r.opt));
+        this.done = this.valid.length + ' lines, ' + this.valid.reduce((s, r) => s + r.qty, 0) + ' units added to your basket';
+        this.step = 3;
+      },
+      template() {
+        const csv = 'sku,quantity,option\n' + TD.catalog.filter(p => p.bestseller).slice(0, 6).map(p => p.sku + ',' + p.moq + ',' + (p.variants.length ? p.variants[0].values[0] : '')).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = 'target-trade-order-template.csv'; a.click();
+      },
+      reset() { this.step = 1; this.rows = []; this.text = ''; this.fileName = ''; this.done = ''; },
+    }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex min-h-screen flex-col bg-white dark:bg-gray-900">
+      <include src="./partials/buyer-nav.html"></include>
+
+      <main class="flex-1 py-8">
+        <div class="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
+          <h1 class="td-title text-4xl font-semibold text-gray-900 dark:text-white">Quick order</h1>
+          <p class="mt-1 text-gray-600 dark:text-gray-400">Paste SKUs and quantities, or upload a CSV from your stock system. Every line is checked against your price list and live stock.</p>
+
+          <ol class="mt-6 mb-8 flex items-center gap-3 text-xs font-semibold tracking-wider uppercase">
+            <template x-for="(s, i) in ['Add lines', 'Check & fix', 'Done']" :key="s">
+              <li class="flex items-center gap-3">
+                <span :class="step >= i + 1 ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-gray-200 text-gray-500'" class="flex h-7 w-7 items-center justify-center rounded-full" x-text="i + 1"></span>
+                <span :class="step >= i + 1 ? 'text-gray-900 dark:text-white' : 'text-gray-400'" x-text="s"></span>
+                <span x-show="i < 2" class="h-px w-10 bg-gray-300"></span>
+              </li>
+            </template>
+          </ol>
+
+          <!-- step 1 -->
+          <div x-show="step === 1" class="grid gap-6 lg:grid-cols-2">
+            <div class="border border-gray-200 p-6 dark:border-gray-800">
+              <h2 class="td-heading text-xl text-gray-900 dark:text-white">Paste lines</h2>
+              <p class="mt-1 text-xs text-gray-500">One line per item: SKU, quantity, option (weight or size, if needed).</p>
+              <textarea x-model="text" rows="10" placeholder="11117,6,22g&#10;11164,20&#10;18016,25" class="mt-3 w-full border border-gray-300 p-3 font-mono text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"></textarea>
+              <div class="mt-3 flex flex-wrap gap-3">
+                <button @click="parse(text)" :disabled="!text.trim()" class="bg-ink px-6 py-3 text-xs font-bold tracking-wider text-white uppercase disabled:opacity-40">Check lines</button>
+                <button @click="text = sample" class="border border-gray-300 px-4 py-3 text-xs font-semibold uppercase hover:border-gray-900 dark:border-gray-600 dark:text-gray-200">Load sample order</button>
+              </div>
+            </div>
+            <div class="border border-gray-200 p-6 dark:border-gray-800">
+              <h2 class="td-heading text-xl text-gray-900 dark:text-white">Upload a CSV</h2>
+              <p class="mt-1 text-xs text-gray-500">Columns: sku, quantity, option. Works with exports from EPOS and stock systems.</p>
+              <label class="mt-3 flex h-48 cursor-pointer flex-col items-center justify-center border-2 border-dashed border-gray-300 bg-[#f9f9f9] text-center hover:border-gray-900 dark:border-gray-700 dark:bg-gray-800">
+                <svg class="h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                <span class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-200">Click to choose a CSV file</span>
+                <span class="text-xs text-gray-500" x-text="fileName || 'CSV up to 10MB'"></span>
+                <input type="file" accept=".csv,text/csv" class="hidden" @change="readFile($event)" />
+              </label>
+              <button @click="template()" class="mt-3 text-xs font-semibold text-brand-600 hover:underline">Download CSV template</button>
+            </div>
+          </div>
+
+          <!-- step 2 -->
+          <div x-show="step === 2" style="display: none">
+            <div class="mb-4 flex flex-wrap items-center gap-3 text-sm">
+              <span class="rounded-full bg-green-50 px-3 py-1 font-semibold text-green-700" x-text="valid.length + ' lines ready'"></span>
+              <span x-show="rows.filter(r => r.status === 'warn').length" class="rounded-full bg-orange-50 px-3 py-1 font-semibold text-orange-700" x-text="rows.filter(r => r.status === 'warn').length + ' adjusted'"></span>
+              <span x-show="errors.length" class="rounded-full bg-red-50 px-3 py-1 font-semibold text-red-700" x-text="errors.length + ' need attention'"></span>
+            </div>
+            <div class="overflow-x-auto border border-gray-200 dark:border-gray-800">
+              <table class="w-full text-sm">
+                <thead class="bg-[#f4f4f4] text-left text-xs tracking-wider text-gray-500 uppercase dark:bg-gray-800">
+                  <tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Product</th><th class="px-3 py-2">Option</th><th class="px-3 py-2 text-right">Qty</th><th class="px-3 py-2 text-right">Unit</th><th class="px-3 py-2 text-right">Line</th><th class="px-3 py-2">Check</th></tr>
+                </thead>
+                <tbody>
+                  <template x-for="r in rows" :key="r.n">
+                    <tr class="border-t border-gray-200 dark:border-gray-800 dark:text-gray-200" :class="r.status === 'error' ? 'bg-red-50/60 dark:bg-red-500/10' : ''">
+                      <td class="px-3 py-2 text-gray-400" x-text="r.n"></td>
+                      <td class="px-3 py-2">
+                        <div class="flex items-center gap-3">
+                          <img x-show="r.p" :src="r.p ? r.p.image : ''" :alt="r.p ? r.p.name : ''" class="h-10 w-10 bg-[#f4f4f4] object-contain" />
+                          <div><p class="font-semibold" x-text="r.p ? r.p.name : 'Unknown product'"></p><p class="text-xs text-gray-500" x-text="'SKU ' + r.sku"></p></div>
+                        </div>
+                      </td>
+                      <td class="px-3 py-2" x-text="r.opt || '-'"></td>
+                      <td class="px-3 py-2 text-right" x-text="r.qty"></td>
+                      <td class="px-3 py-2 text-right" x-text="r.p && r.qty ? TD.gbp(price(r)) : '-'"></td>
+                      <td class="px-3 py-2 text-right font-semibold" x-text="r.p && r.qty ? TD.gbp(price(r) * r.qty) : '-'"></td>
+                      <td class="px-3 py-2 text-xs">
+                        <span :class="r.status === 'ok' ? 'text-green-700' : (r.status === 'warn' ? 'text-orange-700' : 'text-red-700')" x-text="r.status === 'ok' ? 'Ready' : r.msg"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-5 flex flex-wrap items-center justify-between gap-4">
+              <button @click="reset()" class="border border-gray-900 px-6 py-3 text-xs font-semibold tracking-wider uppercase dark:border-white dark:text-white">Start again</button>
+              <div class="flex items-center gap-4">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Total <strong class="text-lg text-gray-900 dark:text-white" x-text="TD.gbp(total)"></strong> ex VAT</p>
+                <button @click="addAll()" :disabled="!valid.length" class="bg-brand-500 px-8 py-3.5 text-xs font-bold tracking-wider text-white uppercase hover:bg-brand-600 disabled:opacity-40" x-text="'Add ' + valid.length + ' lines to basket'"></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- step 3 -->
+          <div x-show="step === 3" class="bg-[#f4f4f4] p-10 text-center dark:bg-gray-800" style="display: none">
+            <p class="font-display text-3xl tracking-wide text-gray-900 uppercase dark:text-white">Lines added</p>
+            <p class="mt-2 text-gray-600 dark:text-gray-400" x-text="done"></p>
+            <div class="mt-6 flex justify-center gap-3">
+              <a href="buyer-cart.html" class="bg-ink px-6 py-3 text-xs font-semibold tracking-wider text-white uppercase">Go to basket</a>
+              <button @click="reset()" class="border border-gray-900 px-6 py-3 text-xs font-semibold tracking-wider uppercase dark:border-white dark:text-white">Add more lines</button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <include src="./partials/buyer-footer.html"></include>
+    </div>
+  </body>
+</html>

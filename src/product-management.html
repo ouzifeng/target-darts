@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Products | Target Darts Trade Admin</title>
+  </head>
+  <body
+    x-data="{ page: 'productManagement', loaded: true, darkMode: false, stickyMenu: false, sidebarToggle: false, scrollTop: false }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex h-screen overflow-hidden">
+      <include src="./partials/sidebar.html"></include>
+
+      <div class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <include src="./partials/overlay.html" />
+        <include src="./partials/header.html" />
+
+        <main>
+          <div
+            class="mx-auto max-w-(--breakpoint-2xl) space-y-6 p-4 md:p-6"
+            x-data="{
+              products: TD.catalog.map(p => ({ ...p, visible: true, tiers: ['Platinum', 'Gold', 'Silver', 'Bronze'] })),
+              search: '',
+              category: 'all',
+              stock: 'all',
+              pageNo: 1,
+              per: 25,
+              edit: null,
+              syncing: false,
+              lastSync: '12 Nov 2026, 07:15',
+              toast: '',
+              get filtered() {
+                const q = this.search.toLowerCase();
+                return this.products.filter(p =>
+                  (this.category === 'all' || p.category === this.category) &&
+                  (this.stock === 'all' || (this.stock === 'out' ? p.stock === 0 : this.stock === 'low' ? p.stock > 0 && p.stock < 20 : p.stock >= 20)) &&
+                  (!q || (p.name + ' ' + p.sku + ' ' + p.player + ' ' + p.ean).toLowerCase().includes(q)));
+              },
+              get pages() { return Math.max(1, Math.ceil(this.filtered.length / this.per)); },
+              get rows() { return this.filtered.slice((this.pageNo - 1) * this.per, this.pageNo * this.per); },
+              flash(m) { this.toast = m; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', 2800); },
+              sync() {
+                this.syncing = true;
+                setTimeout(() => { this.syncing = false; this.lastSync = 'just now'; this.flash(this.products.length + ' products, prices and stock levels synced from ERP'); }, 1400);
+              },
+              save() {
+                const i = this.products.findIndex(p => p.sku === this.edit.sku);
+                this.products[i] = { ...this.edit, net: +this.edit.net, rrp: +this.edit.rrp, stock: +this.edit.stock };
+                this.flash(this.edit.name + ' saved');
+                this.edit = null;
+              },
+            }"
+            x-init="$watch('search', () => pageNo = 1); $watch('category', () => pageNo = 1); $watch('stock', () => pageNo = 1)"
+          >
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 class="td-title text-3xl font-semibold text-gray-900 dark:text-white">Products</h1>
+                <p class="text-sm text-gray-500" x-text="products.length + ' SKUs · last ERP sync ' + lastSync"></p>
+              </div>
+              <button @click="sync()" class="flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">
+                <svg :class="syncing ? 'animate-spin' : ''" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <span x-text="syncing ? 'Syncing...' : 'Sync from ERP'"></span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"><p class="text-xs text-gray-500">Live SKUs</p><p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="products.length"></p></div>
+              <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"><p class="text-xs text-gray-500">Categories / player ranges</p><p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="TD.categories.length + ' / ' + TD.players.length"></p></div>
+              <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"><p class="text-xs text-gray-500">Low stock</p><p class="mt-1 text-2xl font-bold text-orange-600" x-text="products.filter(p => p.stock > 0 && p.stock < 20).length"></p></div>
+              <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"><p class="text-xs text-gray-500">Out of stock</p><p class="mt-1 text-2xl font-bold text-red-600" x-text="products.filter(p => p.stock === 0).length"></p></div>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+              <div class="flex flex-wrap gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+                <input type="search" x-model.debounce.200ms="search" placeholder="Name, SKU, EAN or player" class="h-10 w-72 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
+                <select x-model="category" class="h-10 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                  <option value="all">All categories</option>
+                  <template x-for="c in TD.categories" :key="c.name"><option :value="c.name" x-text="c.name + ' (' + c.count + ')'"></option></template>
+                </select>
+                <select x-model="stock" class="h-10 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                  <option value="all">All stock levels</option><option value="ok">In stock</option><option value="low">Low stock</option><option value="out">Out of stock</option>
+                </select>
+                <span class="ml-auto self-center text-sm text-gray-500" x-text="filtered.length + ' products'"></span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead><tr class="border-b border-gray-200 text-left text-xs text-gray-500 uppercase dark:border-gray-800"><th class="px-4 py-3">Product</th><th>Category</th><th class="text-right">Trade</th><th class="text-right">RRP</th><th class="text-right">Margin</th><th class="text-right">Stock</th><th class="text-center">Variants</th><th class="text-center">Visible</th><th class="px-4"></th></tr></thead>
+                  <tbody>
+                    <template x-for="p in rows" :key="p.sku">
+                      <tr class="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.02]">
+                        <td class="px-4 py-2.5">
+                          <div class="flex items-center gap-3">
+                            <img :src="p.image" :alt="p.name" loading="lazy" class="h-12 w-12 rounded-lg bg-[#f4f4f4] object-contain" />
+                            <div class="min-w-0"><p class="max-w-xs truncate font-medium text-gray-900 dark:text-white" x-text="p.name"></p><p class="text-xs text-gray-500" x-text="'SKU ' + p.sku + (p.player ? ' · ' + p.player : '')"></p></div>
+                          </div>
+                        </td>
+                        <td class="text-xs" x-text="p.category"></td>
+                        <td class="text-right font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(p.net)"></td>
+                        <td class="text-right" x-text="TD.gbp(p.rrp)"></td>
+                        <td class="text-right text-green-700" x-text="TD.margin(p) + '%'"></td>
+                        <td class="text-right"><span :class="p.stock === 0 ? 'text-red-600' : (p.stock < 20 ? 'text-orange-600' : '')" class="font-semibold" x-text="p.stock"></span></td>
+                        <td class="text-center text-xs" x-text="p.variants.length ? p.variants[0].values.length : '-'"></td>
+                        <td class="text-center"><button @click="p.visible = !p.visible" :class="p.visible ? 'bg-green-500' : 'bg-gray-300'" class="relative inline-flex h-5 w-9 rounded-full transition"><span :class="p.visible ? 'translate-x-4' : 'translate-x-0.5'" class="mt-0.5 h-4 w-4 rounded-full bg-white shadow transition"></span></button></td>
+                        <td class="px-4 text-right"><button @click="edit = JSON.parse(JSON.stringify(p))" class="text-xs font-semibold text-brand-600 hover:underline">Edit</button></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div class="flex items-center justify-between p-4 text-sm text-gray-500">
+                <span x-text="'Page ' + pageNo + ' of ' + pages"></span>
+                <div class="flex gap-2">
+                  <button @click="pageNo = Math.max(1, pageNo - 1)" :disabled="pageNo === 1" class="rounded-lg border border-gray-300 px-3 py-1.5 disabled:opacity-40 dark:border-gray-700">Previous</button>
+                  <button @click="pageNo = Math.min(pages, pageNo + 1)" :disabled="pageNo === pages" class="rounded-lg border border-gray-300 px-3 py-1.5 disabled:opacity-40 dark:border-gray-700">Next</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- edit drawer -->
+            <div x-show="edit" class="fixed inset-0 z-[99999] flex justify-end bg-black/40" style="display: none" @keydown.escape.window="edit = null">
+              <template x-if="edit">
+                <div class="h-full w-full max-w-lg overflow-y-auto bg-white p-6 dark:bg-gray-900" @click.away="edit = null">
+                  <div class="flex items-start justify-between">
+                    <div><p class="text-xs text-gray-500" x-text="'SKU ' + edit.sku"></p><h2 class="text-xl font-semibold text-gray-900 dark:text-white" x-text="edit.name"></h2></div>
+                    <button @click="edit = null" class="text-2xl text-gray-400">&times;</button>
+                  </div>
+                  <div class="mt-4 grid grid-cols-4 gap-2">
+                    <template x-for="src in edit.images.slice(0, 4)" :key="src"><img :src="src" :alt="edit.name" class="aspect-square rounded-lg bg-[#f4f4f4] object-contain" /></template>
+                  </div>
+                  <div class="mt-5 grid grid-cols-2 gap-4 text-sm">
+                    <label class="text-gray-600 dark:text-gray-400">Trade price (ex VAT)<input type="number" step="0.01" x-model="edit.net" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                    <label class="text-gray-600 dark:text-gray-400">RRP (inc VAT)<input type="number" step="0.01" x-model="edit.rrp" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                    <label class="text-gray-600 dark:text-gray-400">Stock<input type="number" x-model="edit.stock" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                    <label class="text-gray-600 dark:text-gray-400">Min order qty<input type="number" x-model="edit.moq" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                  </div>
+                  <div class="mt-5">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">Tier pricing preview</p>
+                    <table class="mt-2 w-full text-sm">
+                      <template x-for="t in TD.tiers" :key="t.name">
+                        <tr class="border-b border-gray-100 dark:border-gray-800 dark:text-gray-300"><td class="py-1.5" x-text="t.name"></td><td class="text-right" x-text="'-' + t.discount + '%'"></td><td class="text-right font-semibold" x-text="TD.gbp(+edit.net * (100 - t.discount) / 100)"></td></tr>
+                      </template>
+                    </table>
+                  </div>
+                  <div class="mt-5">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">Visible to tiers</p>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <template x-for="t in TD.tiers" :key="'v' + t.name">
+                        <label class="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:text-gray-300"><input type="checkbox" :value="t.name" x-model="edit.tiers" class="rounded text-brand-500" /><span x-text="t.name"></span></label>
+                      </template>
+                    </div>
+                  </div>
+                  <div x-show="edit.variants.length" class="mt-5">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="edit.variants.length ? edit.variants[0].name + ' options' : ''"></p>
+                    <div class="mt-2 flex flex-wrap gap-2"><template x-for="v in (edit.variants[0] || { values: [] }).values" :key="v"><span class="rounded-lg bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800 dark:text-gray-300" x-text="v"></span></template></div>
+                  </div>
+                  <div class="mt-8 flex gap-3">
+                    <button @click="save()" class="flex-1 rounded-lg bg-ink py-3 text-sm font-semibold text-white hover:bg-brand-500">Save changes</button>
+                    <a :href="'buyer-product-detail.html?sku=' + edit.sku" class="rounded-lg border border-gray-300 px-4 py-3 text-sm font-semibold dark:border-gray-700 dark:text-gray-200">View in portal</a>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div x-show="toast" x-transition class="fixed right-6 bottom-6 z-[99999] rounded-lg bg-ink px-4 py-3 text-sm text-white shadow-2xl" style="display: none" x-text="toast"></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

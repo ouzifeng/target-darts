@@ -1,0 +1,125 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-products.html"
+        ],
+        "createdAt": "2026-11-12T12:35:34.461Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "buyer-dashboard.html"
+        ],
+        "createdAt": "2026-11-12T12:43:59.221Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-11-12T12:48:17.143Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "orders-panel.html"
+        ],
+        "createdAt": "2026-11-12T12:48:17.294Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "order-detail.html"
+        ],
+        "createdAt": "2026-11-12T12:48:17.491Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "product-management.html"
+        ],
+        "createdAt": "2026-11-12T12:48:17.628Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "user-management.html"
+        ],
+        "createdAt": "2026-11-12T12:48:17.798Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "customer-config.html"
+        ],
+        "createdAt": "2026-11-12T12:48:17.942Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-11-12T12:57:00.778Z",
+        "reason": "false positive: detector does not resolve Tailwind v4 text-size classes; rendered h1 is 30px vs 14-16px body"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "buyer-cart.html"
+        ],
+        "createdAt": "2026-11-12T12:57:00.883Z",
+        "reason": "false positive: detector does not resolve Tailwind v4 text-size classes; rendered h1 is 30px vs 14-16px body"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "buyer-bulk-upload.html"
+        ],
+        "createdAt": "2026-11-12T12:57:01.050Z",
+        "reason": "false positive: detector does not resolve Tailwind v4 text-size classes; rendered h1 is 30px vs 14-16px body"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "buyer-dashboard.html"
+        ],
+        "createdAt": "2026-11-12T12:57:01.231Z",
+        "reason": "false positive: detector does not resolve Tailwind v4 text-size classes; rendered h1 is 30px vs 14-16px body"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "buyer-budget.html"
+        ],
+        "createdAt": "2026-11-12T12:57:01.367Z",
+        "reason": "false positive: detector does not resolve Tailwind v4 text-size classes; rendered h1 is 30px vs 14-16px body"
+      }
+    ]
+  }
+}

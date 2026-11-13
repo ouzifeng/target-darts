@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Stockists | Target Darts Trade Admin</title>
+  </head>
+  <body
+    x-data="{ page: 'userManagement', loaded: true, darkMode: false, stickyMenu: false, sidebarToggle: false, scrollTop: false }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex h-screen overflow-hidden">
+      <include src="./partials/sidebar.html"></include>
+
+      <div class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <include src="./partials/overlay.html" />
+        <include src="./partials/header.html" />
+
+        <main>
+          <div
+            class="mx-auto max-w-(--breakpoint-2xl) space-y-6 p-4 md:p-6"
+            x-data="{
+              list: TD.customers.map(c => ({ ...c, last: (TD.ordersFor(c.id)[0] || {}).date })),
+              search: '',
+              tier: 'all',
+              type: 'all',
+              adding: false,
+              form: { name: '', type: 'Specialist darts retailer', contact: '', email: '', city: '', tier: 'Bronze' },
+              toast: '',
+              get types() { return [...new Set(this.list.map(c => c.type))]; },
+              get filtered() {
+                const q = this.search.toLowerCase();
+                return this.list.filter(c => (this.tier === 'all' || c.tier === this.tier) && (this.type === 'all' || c.type === this.type) &&
+                  (!q || (c.name + ' ' + c.contact + ' ' + c.city + ' ' + c.id).toLowerCase().includes(q)));
+              },
+              tierCss(t) { return { Platinum: 'bg-ink text-white', Gold: 'bg-amber-100 text-amber-800', Silver: 'bg-gray-200 text-gray-700', Bronze: 'bg-orange-100 text-orange-800' }[t]; },
+              add() {
+                const t = TD.tiers.find(t => t.name === this.form.tier);
+                this.list.unshift({ ...this.form, id: 'TDC-' + (1013 + this.list.length - 12), discount: t.discount, terms: 'Proforma', creditLimit: 0, balance: 0, ytd: 0, orders: 0, status: 'invited', last: null });
+                this.toast = this.form.name + ' added and invited to the portal';
+                setTimeout(() => this.toast = '', 2800);
+                this.adding = false; this.form = { name: '', type: 'Specialist darts retailer', contact: '', email: '', city: '', tier: 'Bronze' };
+              },
+            }"
+          >
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 class="td-title text-3xl font-semibold text-gray-900 dark:text-white">Stockists</h1>
+                <p class="text-sm text-gray-500">Trade accounts, tiers and credit, synced with the ERP customer ledger.</p>
+              </div>
+              <button @click="adding = true" class="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">+ Add stockist</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <template x-for="t in TD.tiers" :key="t.name">
+                <button @click="tier = tier === t.name ? 'all' : t.name" :class="tier === t.name ? 'ring-1 ring-ink dark:ring-white' : ''" class="rounded-2xl border border-gray-200 bg-white p-4 text-left dark:border-gray-800 dark:bg-white/[0.03]">
+                  <p class="flex items-center justify-between text-xs text-gray-500"><span x-text="t.name + ' tier'"></span><span x-text="t.discount + '% off'"></span></p>
+                  <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="list.filter(c => c.tier === t.name).length"></p>
+                  <p class="text-[11px] text-gray-400" x-text="'Spend from ' + TD.gbpShort(t.minYear) + ' a year'"></p>
+                </button>
+              </template>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+              <div class="flex flex-wrap gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+                <input type="search" x-model="search" placeholder="Name, contact, town or account" class="h-10 w-72 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
+                <select x-model="type" class="h-10 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                  <option value="all">All types</option>
+                  <template x-for="t in types" :key="t"><option :value="t" x-text="t"></option></template>
+                </select>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead><tr class="border-b border-gray-200 text-left text-xs text-gray-500 uppercase dark:border-gray-800"><th class="px-4 py-3">Stockist</th><th>Contact</th><th>Tier</th><th>Terms</th><th class="text-right">Credit used</th><th class="text-right">Spend YTD</th><th>Last order</th><th>Status</th><th class="px-4"></th></tr></thead>
+                  <tbody>
+                    <template x-for="c in filtered" :key="c.id">
+                      <tr class="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.02]">
+                        <td class="px-4 py-3"><p class="font-semibold text-gray-900 dark:text-white" x-text="c.name"></p><p class="text-xs text-gray-500" x-text="c.id + ' · ' + c.type + ' · ' + c.city"></p></td>
+                        <td><p x-text="c.contact"></p><p class="text-xs text-gray-500" x-text="c.email"></p></td>
+                        <td><span :class="tierCss(c.tier)" class="rounded-full px-2.5 py-0.5 text-xs font-semibold" x-text="c.tier"></span></td>
+                        <td class="text-xs" x-text="c.terms"></td>
+                        <td class="text-right">
+                          <p class="text-xs" x-text="c.creditLimit ? Math.round(c.balance / c.creditLimit * 100) + '% of ' + TD.gbpShort(c.creditLimit) : '-'"></p>
+                          <div class="mt-1 ml-auto h-1.5 w-24 rounded-full bg-gray-100 dark:bg-gray-800"><div class="h-1.5 rounded-full bg-ink dark:bg-white" :style="'width:' + (c.creditLimit ? Math.round(c.balance / c.creditLimit * 100) : 0) + '%'"></div></div>
+                        </td>
+                        <td class="text-right font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(c.ytd)"></td>
+                        <td class="text-xs" x-text="c.last ? TD.date(c.last) : '-'"></td>
+                        <td><span :class="c.status === 'active' ? 'bg-green-50 text-green-700' : (c.status === 'on hold' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700')" class="rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize" x-text="c.status"></span></td>
+                        <td class="px-4 text-right"><a :href="'customer-config.html?id=' + c.id" class="text-xs font-semibold text-brand-600 hover:underline">Settings</a></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- add modal -->
+            <div x-show="adding" class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4" style="display: none">
+              <div class="w-full max-w-lg rounded-2xl bg-white p-6 dark:bg-gray-900" @click.away="adding = false">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Add stockist</h2>
+                <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <label class="col-span-2 text-gray-600 dark:text-gray-400">Business name<input x-model="form.name" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                  <label class="text-gray-600 dark:text-gray-400">Contact<input x-model="form.contact" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                  <label class="text-gray-600 dark:text-gray-400">Email<input type="email" x-model="form.email" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                  <label class="text-gray-600 dark:text-gray-400">Town<input x-model="form.city" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white" /></label>
+                  <label class="text-gray-600 dark:text-gray-400">Tier<select x-model="form.tier" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"><template x-for="t in TD.tiers" :key="t.name"><option :value="t.name" x-text="t.name"></option></template></select></label>
+                  <label class="col-span-2 text-gray-600 dark:text-gray-400">Type<select x-model="form.type" class="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"><template x-for="t in types" :key="t"><option :value="t" x-text="t"></option></template></select></label>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                  <button @click="adding = false" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold dark:border-gray-700 dark:text-gray-200">Cancel</button>
+                  <button @click="add()" :disabled="!form.name || !form.email" class="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Add and send invite</button>
+                </div>
+              </div>
+            </div>
+
+            <div x-show="toast" x-transition class="fixed right-6 bottom-6 z-[99999] rounded-lg bg-ink px-4 py-3 text-sm text-white shadow-2xl" style="display: none" x-text="toast"></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,71 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-product-detail.html"
+        ],
+        "createdAt": "2026-11-12T12:40:48.455Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-cart.html"
+        ],
+        "createdAt": "2026-11-12T12:41:18.823Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-checkout.html"
+        ],
+        "createdAt": "2026-11-12T12:41:57.104Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-orders.html"
+        ],
+        "createdAt": "2026-11-12T12:41:57.239Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-dashboard.html"
+        ],
+        "createdAt": "2026-11-12T12:41:57.420Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/buyer-bulk-upload.html"
+        ],
+        "createdAt": "2026-11-12T12:41:57.603Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/b2b-login.html"
+        ],
+        "createdAt": "2026-11-12T12:41:57.817Z",
+        "reason": "false positive: img src is bound by Alpine (:src) at runtime from the product catalogue"
+      }
+    ]
+  }
+}

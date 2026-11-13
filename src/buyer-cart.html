@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Basket | Target Darts Trade Portal</title>
+  </head>
+  <body
+    x-data="{
+      page: 'buyerCart',
+      loaded: true,
+      darkMode: false,
+      lines: TD.cart.lines(),
+      refresh() { this.lines = TD.cart.lines(); },
+      get units() { return this.lines.reduce((s, l) => s + l.qty, 0); },
+      get subtotal() { return TD.cart.total(); },
+      get delivery() { return this.subtotal >= 250 || this.subtotal === 0 ? 0 : 9.95; },
+      get vat() { return (this.subtotal + this.delivery) * 0.2; },
+      get rrpValue() { return this.lines.reduce((s, l) => s + l.product.rrp * l.qty, 0); },
+      get creditLeft() { return TD.buyer.creditLimit - TD.buyer.balance; },
+      setQty(l, q) { TD.cart.setQty(l.key, Math.max(l.product.moq, q)); this.refresh(); },
+      remove(l) { TD.cart.remove(l.key); this.refresh(); },
+    }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    @td-cart-changed.window="refresh()"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex min-h-screen flex-col bg-white dark:bg-gray-900">
+      <include src="./partials/buyer-nav.html"></include>
+
+      <main class="flex-1 py-8">
+        <div class="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+          <div class="mb-8 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 class="td-title text-4xl font-semibold text-gray-900 dark:text-white">Your basket</h1>
+              <p class="mt-1 text-sm text-gray-600 dark:text-gray-400"><span x-text="lines.length"></span> lines &middot; <span x-text="units"></span> units</p>
+            </div>
+            <a href="buyer-bulk-upload.html" class="text-sm font-semibold text-brand-600 hover:underline">+ Add lines by SKU or CSV</a>
+          </div>
+
+          <div x-show="lines.length === 0" class="border border-dashed border-gray-300 py-20 text-center dark:border-gray-700">
+            <p class="font-display text-2xl text-gray-900 uppercase dark:text-white">Your basket is empty</p>
+            <p class="mt-2 text-sm text-gray-500">Browse the trade catalogue or use quick order to add lines.</p>
+            <a href="buyer-products.html" class="mt-6 inline-block bg-ink px-6 py-3 text-xs font-semibold tracking-wider text-white uppercase">Shop trade</a>
+          </div>
+
+          <div x-show="lines.length" class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <div class="lg:col-span-2">
+              <div class="hidden grid-cols-12 border-b border-gray-900 pb-2 text-xs font-semibold tracking-wider text-gray-500 uppercase md:grid dark:border-gray-500">
+                <span class="col-span-6">Product</span><span class="col-span-2 text-right">Unit (ex VAT)</span><span class="col-span-2 text-center">Qty</span><span class="col-span-2 text-right">Line total</span>
+              </div>
+              <template x-for="l in lines" :key="l.key">
+                <div class="grid grid-cols-12 items-center gap-3 border-b border-gray-200 py-4 dark:border-gray-800">
+                  <div class="col-span-12 flex gap-4 md:col-span-6">
+                    <a :href="'buyer-product-detail.html?sku=' + l.sku" class="h-24 w-24 flex-shrink-0 bg-[#f4f4f4] dark:bg-gray-800">
+                      <img :src="l.product.image" :alt="l.product.name" class="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal" />
+                    </a>
+                    <div class="min-w-0">
+                      <a :href="'buyer-product-detail.html?sku=' + l.sku" class="font-display text-lg leading-tight tracking-wide text-gray-900 uppercase hover:text-brand-600 dark:text-white" x-text="l.product.name"></a>
+                      <p class="text-xs text-gray-500">SKU <span x-text="l.sku"></span><span x-show="l.variant" x-text="' &middot; ' + l.variant"></span></p>
+                      <p class="mt-1 text-xs"><span :class="TD.stockStatus(l.product).css" class="rounded-full px-2 py-0.5 font-semibold" x-text="TD.stockStatus(l.product).label"></span></p>
+                      <button @click="remove(l)" class="mt-2 text-xs text-gray-500 underline hover:text-brand-600">Remove</button>
+                    </div>
+                  </div>
+                  <div class="col-span-4 text-right md:col-span-2">
+                    <p class="font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(l.price)"></p>
+                    <p class="text-[11px] text-green-700" x-text="'-' + l.discount + '% applied'"></p>
+                  </div>
+                  <div class="col-span-4 flex justify-center md:col-span-2">
+                    <div class="flex h-9 items-center border border-gray-300 dark:border-gray-600">
+                      <button @click="setQty(l, l.qty - l.product.moq)" class="w-8 text-gray-500">&minus;</button>
+                      <input type="number" :value="l.qty" @change="setQty(l, +$event.target.value || l.product.moq)" class="w-12 border-0 p-0 text-center text-sm focus:ring-0 dark:bg-transparent dark:text-white" />
+                      <button @click="setQty(l, l.qty + l.product.moq)" class="w-8 text-gray-500">+</button>
+                    </div>
+                  </div>
+                  <p class="col-span-4 text-right font-bold text-gray-900 md:col-span-2 dark:text-white" x-text="TD.gbp(l.lineTotal)"></p>
+                </div>
+              </template>
+              <div class="mt-4 flex justify-between text-sm">
+                <a href="buyer-products.html" class="text-gray-600 underline hover:text-gray-900 dark:text-gray-400">Continue shopping</a>
+                <button @click="TD.cart.clear(); refresh()" class="text-gray-500 underline hover:text-brand-600">Clear basket</button>
+              </div>
+            </div>
+
+            <aside>
+              <div class="sticky top-32 bg-[#f4f4f4] p-6 dark:bg-gray-800">
+                <h2 class="td-heading mb-4 text-xl text-gray-900 dark:text-white">Order summary</h2>
+                <dl class="space-y-2 text-sm">
+                  <div class="flex justify-between"><dt class="text-gray-600 dark:text-gray-400">Goods (ex VAT)</dt><dd class="font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(subtotal)"></dd></div>
+                  <div class="flex justify-between"><dt class="text-gray-600 dark:text-gray-400">Delivery</dt><dd class="font-semibold text-gray-900 dark:text-white" x-text="delivery ? TD.gbp(delivery) : 'Free'"></dd></div>
+                  <div class="flex justify-between"><dt class="text-gray-600 dark:text-gray-400">VAT 20%</dt><dd class="text-gray-900 dark:text-white" x-text="TD.gbp(vat)"></dd></div>
+                  <div class="flex justify-between border-t border-gray-300 pt-3 text-base dark:border-gray-600"><dt class="font-bold text-gray-900 dark:text-white">Total</dt><dd class="font-bold text-gray-900 dark:text-white" x-text="TD.gbp(subtotal + delivery + vat)"></dd></div>
+                </dl>
+                <p x-show="delivery" class="mt-3 text-xs text-gray-600" x-text="'Add ' + TD.gbp(250 - subtotal) + ' more for free delivery'"></p>
+                <div class="mt-4 space-y-1 border-t border-gray-300 pt-4 text-xs text-gray-600 dark:border-gray-600 dark:text-gray-400">
+                  <p class="flex justify-between"><span>Retail value at RRP</span><span class="font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(rrpValue)"></span></p>
+                  <p class="flex justify-between"><span>Credit available</span><span class="font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(creditLeft)"></span></p>
+                  <p class="flex justify-between"><span>Payment terms</span><span class="font-semibold text-gray-900 dark:text-white" x-text="TD.buyer.terms"></span></p>
+                </div>
+                <a href="buyer-checkout.html" class="mt-6 block bg-brand-500 py-3.5 text-center text-sm font-bold tracking-wider text-white uppercase hover:bg-brand-600">Proceed to checkout</a>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+
+      <include src="./partials/buyer-footer.html"></include>
+    </div>
+  </body>
+</html>

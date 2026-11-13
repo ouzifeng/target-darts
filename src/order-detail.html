@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Order Detail | Target Darts Trade Admin</title>
+  </head>
+  <body
+    x-data="{
+      page: 'ordersPanel',
+      loaded: true,
+      darkMode: false,
+      stickyMenu: false,
+      sidebarToggle: false,
+      scrollTop: false,
+      o: { ...(TD.order(TD.param('id')) || TD.orders[0]) },
+      toast: '',
+      get c() { return TD.customer(this.o.customerId); },
+      get timeline() {
+        const o = this.o, t = [{ when: TD.date(o.date) + ' ' + o.time, what: 'Order placed via ' + o.channel, who: o.customer }];
+        if (o.status === 'pending approval') t.push({ when: 'Now', what: 'Waiting for approval: over the stockist credit threshold', who: 'Rules engine' });
+        if (['approved','picking','dispatched','delivered'].includes(o.status)) t.push({ when: TD.date(o.date), what: 'Approved and pushed to ERP as ' + (o.erpRef || 'sales order'), who: TD.admin.name });
+        if (['picking','dispatched','delivered'].includes(o.status)) t.push({ when: TD.date(o.date), what: 'Released to warehouse for picking', who: 'ERP' });
+        if (['dispatched','delivered'].includes(o.status)) t.push({ when: TD.date(o.date), what: 'Dispatched with ' + o.carrier, who: 'Warehouse' });
+        if (o.status === 'delivered') t.push({ when: TD.date(o.date), what: 'Delivered, invoice posted', who: o.carrier });
+        if (o.status === 'cancelled') t.push({ when: TD.date(o.date), what: 'Cancelled at stockist request', who: TD.admin.name });
+        return t;
+      },
+      flash(m) { this.toast = m; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', 2800); },
+      approve() { this.o.status = 'approved'; this.o.synced = true; this.o.erpRef = this.o.erpRef || 'SO' + (380000 + Math.floor(Math.random() * 9999)); this.flash('Approved and pushed to ERP as ' + this.o.erpRef); },
+      sync() { this.o.synced = true; this.o.erpRef = this.o.erpRef || 'SO' + (380000 + Math.floor(Math.random() * 9999)); this.flash('Pushed to ERP as ' + this.o.erpRef); },
+    }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex h-screen overflow-hidden">
+      <include src="./partials/sidebar.html"></include>
+
+      <div class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <include src="./partials/overlay.html" />
+        <include src="./partials/header.html" />
+
+        <main>
+          <div class="mx-auto max-w-(--breakpoint-2xl) space-y-6 p-4 md:p-6">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <a href="orders-panel.html" class="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white">&larr; Orders</a>
+                <h1 class="td-title mt-1 flex items-center gap-3 text-3xl font-semibold text-gray-900 dark:text-white">
+                  <span x-text="o.id"></span>
+                  <span :class="TD.statusCss(o.status)" class="rounded-full px-3 py-1 font-sans text-xs font-semibold normal-case" x-text="TD.statusLabel(o.status)"></span>
+                </h1>
+                <p class="text-sm text-gray-500" x-text="'Placed ' + TD.date(o.date) + ' at ' + o.time + ' via ' + o.channel + ' · PO ' + o.po"></p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button @click="window.print()" class="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">Print</button>
+                <button x-show="o.status === 'pending approval'" @click="approve()" class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Approve order</button>
+                <button x-show="o.status !== 'pending approval'" @click="sync()" class="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500" x-text="o.synced ? 'Re-sync to ERP' : 'Push to ERP'"></button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-12 gap-6">
+              <div class="col-span-12 space-y-6 xl:col-span-8">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <h2 class="mb-3 text-lg font-semibold text-gray-900 dark:text-white" x-text="'Order lines (' + o.lines + ')'"></h2>
+                  <table class="w-full text-sm">
+                    <thead><tr class="border-b border-gray-200 text-left text-xs text-gray-500 uppercase dark:border-gray-800"><th class="py-2">Product</th><th>SKU</th><th class="text-right">Qty</th><th class="text-right">Unit</th><th class="text-right">Disc</th><th class="text-right">Line</th></tr></thead>
+                    <tbody>
+                      <template x-for="i in o.items" :key="i.sku + i.variant">
+                        <tr class="border-b border-gray-100 dark:border-gray-800 dark:text-gray-300">
+                          <td class="py-2.5">
+                            <div class="flex items-center gap-3">
+                              <img :src="i.image" :alt="i.name" class="h-12 w-12 rounded-lg bg-[#f4f4f4] object-contain" />
+                              <div><a :href="'buyer-product-detail.html?sku=' + i.sku" class="font-medium text-gray-900 hover:text-brand-600 dark:text-white" x-text="i.name"></a><p class="text-xs text-gray-500" x-text="i.variant ? i.category + ' · ' + i.variant : i.category"></p></div>
+                            </div>
+                          </td>
+                          <td class="text-gray-500" x-text="i.sku"></td>
+                          <td class="text-right" x-text="i.qty"></td>
+                          <td class="text-right" x-text="TD.gbp(i.price)"></td>
+                          <td class="text-right text-green-700" x-text="i.disc + '%'"></td>
+                          <td class="text-right font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(i.qty * i.price)"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                  <div class="mt-4 ml-auto w-full max-w-xs space-y-1 text-sm">
+                    <p class="flex justify-between text-gray-600 dark:text-gray-400"><span>Net</span><span x-text="TD.gbp(o.total)"></span></p>
+                    <p class="flex justify-between text-gray-600 dark:text-gray-400"><span>Delivery</span><span x-text="o.total >= 250 ? 'Free' : TD.gbp(9.95)"></span></p>
+                    <p class="flex justify-between text-gray-600 dark:text-gray-400"><span>VAT</span><span x-text="TD.gbp(o.vat)"></span></p>
+                    <p class="flex justify-between border-t border-gray-200 pt-2 text-base font-bold text-gray-900 dark:border-gray-800 dark:text-white"><span>Total</span><span x-text="TD.gbp(o.gross)"></span></p>
+                  </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Timeline</h2>
+                  <ol class="relative ml-2 border-l border-gray-200 dark:border-gray-700">
+                    <template x-for="(t, n) in timeline" :key="n">
+                      <li class="mb-5 ml-5">
+                        <span class="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full" :class="n === timeline.length - 1 ? 'bg-brand-500' : 'bg-gray-300'"></span>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white" x-text="t.what"></p>
+                        <p class="text-xs text-gray-500" x-text="t.when + ' · ' + t.who"></p>
+                      </li>
+                    </template>
+                  </ol>
+                  <p x-show="o.note" class="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800" x-text="'Stockist note: ' + o.note"></p>
+                </div>
+              </div>
+
+              <div class="col-span-12 space-y-6 xl:col-span-4">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <p class="text-xs text-gray-500 uppercase">Stockist</p>
+                  <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white" x-text="c.name"></p>
+                  <p class="text-sm text-gray-500" x-text="c.type + ' · ' + c.city"></p>
+                  <dl class="mt-4 space-y-2 text-sm">
+                    <div class="flex justify-between"><dt class="text-gray-500">Contact</dt><dd class="text-gray-900 dark:text-white" x-text="c.contact"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Email</dt><dd class="text-gray-900 dark:text-white" x-text="c.email"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Tier</dt><dd class="text-gray-900 dark:text-white" x-text="c.tier + ' (' + c.discount + '%)'"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Terms</dt><dd class="text-gray-900 dark:text-white" x-text="c.terms"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Credit used</dt><dd class="text-gray-900 dark:text-white" x-text="TD.gbp(c.balance) + ' / ' + TD.gbp(c.creditLimit)"></dd></div>
+                  </dl>
+                  <a :href="'customer-config.html?id=' + c.id" class="mt-4 inline-block text-sm font-semibold text-brand-600 hover:underline">Customer settings &rarr;</a>
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <p class="text-xs text-gray-500 uppercase">Delivery</p>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white" x-text="c.name + ', ' + c.city"></p>
+                  <dl class="mt-3 space-y-2 text-sm">
+                    <div class="flex justify-between"><dt class="text-gray-500">Carrier</dt><dd class="text-gray-900 dark:text-white" x-text="o.carrier || 'Not dispatched'"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Units</dt><dd class="text-gray-900 dark:text-white" x-text="o.units"></dd></div>
+                  </dl>
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <p class="text-xs text-gray-500 uppercase">ERP</p>
+                  <dl class="mt-3 space-y-2 text-sm">
+                    <div class="flex justify-between"><dt class="text-gray-500">Sync status</dt><dd :class="o.synced ? 'text-green-700' : 'text-orange-600'" x-text="o.synced ? 'Synced' : 'Not synced'"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Sales order</dt><dd class="text-gray-900 dark:text-white" x-text="o.erpRef || '-'"></dd></div>
+                    <div class="flex justify-between"><dt class="text-gray-500">Account</dt><dd class="text-gray-900 dark:text-white" x-text="c.account"></dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div x-show="toast" x-transition class="fixed right-6 bottom-6 z-[99999] rounded-lg bg-ink px-4 py-3 text-sm text-white shadow-2xl" style="display: none" x-text="toast"></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

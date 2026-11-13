@@ -1,0 +1,99 @@
+<!-- ===== Target Darts trade portal: top navigation ===== -->
+<header
+  class="sticky top-0 z-50 bg-ink text-white shadow-sm"
+  x-data="{
+    navCart: TD.cart.count(),
+    navUser: TD.buyer,
+    q: TD.param('q') || '',
+    menu: false,
+    mobile: false,
+  }"
+  @td-cart-changed.window="navCart = TD.cart.count()"
+>
+  <div class="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between gap-4">
+      <div class="flex items-center gap-8">
+        <button class="md:hidden" @click="mobile = !mobile" aria-label="Menu">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+        <a href="buyer-dashboard.html" class="flex items-center gap-3">
+          <img src="./images/target-logo-white.png" alt="Target Darts" class="h-auto w-[132px]" />
+          <span class="hidden rounded-sm border border-white/30 px-1.5 py-0.5 text-[10px] font-semibold tracking-widest text-white/80 uppercase sm:inline">Trade</span>
+        </a>
+        <nav class="font-display hidden items-center gap-6 text-[15px] tracking-wide uppercase md:flex">
+          <a href="buyer-dashboard.html" :class="page === 'buyerDashboard' ? 'text-white border-brand-500' : 'text-white/70 border-transparent hover:text-white'" class="border-b-2 py-5 transition-colors">Home</a>
+          <a href="buyer-products.html" :class="page === 'buyerProducts' || page === 'buyerProductDetail' ? 'text-white border-brand-500' : 'text-white/70 border-transparent hover:text-white'" class="border-b-2 py-5 transition-colors">Shop Trade</a>
+          <a href="buyer-bulk-upload.html" :class="page === 'buyerBulkUpload' ? 'text-white border-brand-500' : 'text-white/70 border-transparent hover:text-white'" class="border-b-2 py-5 transition-colors">Quick Order</a>
+          <a href="buyer-orders.html" :class="page === 'buyerOrders' ? 'text-white border-brand-500' : 'text-white/70 border-transparent hover:text-white'" class="border-b-2 py-5 transition-colors">My Orders</a>
+          <a href="buyer-budget.html" :class="page === 'buyerBudget' ? 'text-white border-brand-500' : 'text-white/70 border-transparent hover:text-white'" class="border-b-2 py-5 transition-colors">Account</a>
+        </nav>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <form action="buyer-products.html" method="get" class="relative hidden lg:block">
+          <input
+            type="search"
+            name="q"
+            x-model="q"
+            placeholder="Search SKU, player or product..."
+            class="h-10 w-72 rounded-sm border-0 bg-white/10 pr-4 pl-10 text-sm text-white placeholder-white/50 focus:bg-white/15 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+          />
+          <svg class="absolute top-2.5 left-3 h-5 w-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </form>
+
+        <a href="index.html" class="hidden items-center gap-2 rounded-sm border border-white/25 px-3 py-2 text-xs font-semibold tracking-wide text-white/90 uppercase transition-colors hover:bg-white hover:text-ink md:flex">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" /></svg>
+          Admin Panel
+        </a>
+
+        <a href="buyer-cart.html" class="relative p-2 text-white/90 transition-colors hover:text-white" aria-label="Basket">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+          <span x-show="navCart > 0" class="absolute -top-0.5 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1 text-[11px] font-bold text-white" x-text="navCart"></span>
+        </a>
+
+        <div class="relative" @click.away="menu = false">
+          <button @click="menu = !menu" class="flex items-center gap-2 p-1">
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-bold" x-text="navUser.name.split(' ').map(n => n[0]).join('')"></span>
+            <span class="hidden text-left leading-tight xl:block">
+              <span class="block text-xs font-semibold" x-text="navUser.company"></span>
+              <span class="block text-[11px] text-white/60" x-text="navUser.tier + ' stockist'"></span>
+            </span>
+            <svg class="h-4 w-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          <div x-show="menu" x-transition class="absolute right-0 mt-2 w-64 rounded-sm border border-gray-200 bg-white text-gray-800 shadow-xl dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" style="display: none">
+            <div class="border-b border-gray-200 p-4 dark:border-gray-700">
+              <p class="text-sm font-semibold" x-text="navUser.name"></p>
+              <p class="text-xs text-gray-500" x-text="navUser.email"></p>
+              <p class="mt-1 text-xs text-gray-600 dark:text-gray-400"><span x-text="navUser.company"></span> &middot; <span x-text="navUser.companyId"></span></p>
+            </div>
+            <div class="p-2 text-sm">
+              <a href="buyer-budget.html" class="block rounded-sm px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Account &amp; credit</a>
+              <a href="buyer-orders.html" class="block rounded-sm px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Orders &amp; invoices</a>
+              <a href="b2b-login.html" class="block rounded-sm px-3 py-2 text-brand-600 hover:bg-brand-50">Sign out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- mobile menu -->
+  <nav x-show="mobile" class="font-display border-t border-white/10 px-4 pb-4 text-sm tracking-wide uppercase md:hidden" style="display: none">
+    <a href="buyer-dashboard.html" class="block py-2">Home</a>
+    <a href="buyer-products.html" class="block py-2">Shop Trade</a>
+    <a href="buyer-bulk-upload.html" class="block py-2">Quick Order</a>
+    <a href="buyer-orders.html" class="block py-2">My Orders</a>
+    <a href="buyer-budget.html" class="block py-2">Account</a>
+    <a href="index.html" class="block py-2">Admin Panel</a>
+  </nav>
+
+  <!-- trade strip -->
+  <div class="border-t border-white/10 bg-[#1c1c1e]">
+    <div class="mx-auto flex max-w-screen-2xl items-center justify-center gap-8 overflow-x-auto px-4 py-2 text-[11px] font-medium whitespace-nowrap text-white/80 sm:px-6 lg:px-8">
+      <span>Your price: <strong class="text-white" x-text="navUser.tier + ' tier, ' + navUser.discount + '% off trade'"></strong></span>
+      <span class="hidden sm:inline">Free UK delivery on trade orders over £250</span>
+      <span class="hidden md:inline">Order by 3pm for same-day dispatch</span>
+      <span class="hidden lg:inline">Terms: <strong class="text-white" x-text="navUser.terms"></strong></span>
+    </div>
+  </div>
+</header>

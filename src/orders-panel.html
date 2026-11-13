@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Orders | Target Darts Trade Admin</title>
+  </head>
+  <body
+    x-data="{ page: 'ordersPanel', loaded: true, darkMode: false, stickyMenu: false, sidebarToggle: false, scrollTop: false }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex h-screen overflow-hidden">
+      <include src="./partials/sidebar.html"></include>
+
+      <div class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <include src="./partials/overlay.html" />
+        <include src="./partials/header.html" />
+
+        <main>
+          <div
+            class="mx-auto max-w-(--breakpoint-2xl) space-y-6 p-4 md:p-6"
+            x-data="{
+              orders: TD.orders.map(o => ({ ...o })),
+              status: 'all',
+              customer: 'all',
+              channel: 'all',
+              search: '',
+              selected: [],
+              toast: '',
+              get filtered() {
+                const q = this.search.toLowerCase();
+                return this.orders.filter(o =>
+                  (this.status === 'all' || o.status === this.status) &&
+                  (this.customer === 'all' || o.customerId === this.customer) &&
+                  (this.channel === 'all' || o.channel === this.channel) &&
+                  (!q || (o.id + ' ' + o.customer + ' ' + o.po + ' ' + o.erpRef).toLowerCase().includes(q)));
+              },
+              count(s) { return this.orders.filter(o => o.status === s).length; },
+              get channels() { return [...new Set(this.orders.map(o => o.channel))]; },
+              flash(m) { this.toast = m; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', 2800); },
+              approve(o) { o.status = 'approved'; o.synced = true; o.erpRef = 'SO' + (380000 + Math.floor(Math.random() * 9999)); this.flash(o.id + ' approved and sent to ERP as ' + o.erpRef); },
+              sync(o) { o.synced = true; o.erpRef = o.erpRef || 'SO' + (380000 + Math.floor(Math.random() * 9999)); this.flash(o.id + ' pushed to ERP (' + o.erpRef + ')'); },
+              approveSelected() { this.orders.filter(o => this.selected.includes(o.id) && o.status === 'pending approval').forEach(o => this.approve(o)); this.flash(this.selected.length + ' orders approved'); this.selected = []; },
+              exportCsv() {
+                const rows = [['Order','Date','Stockist','PO','Channel','Status','Net','VAT','Gross','ERP ref']].concat(this.filtered.map(o => [o.id, o.date, o.customer, o.po, o.channel, o.status, o.total, o.vat, o.gross, o.erpRef]));
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }));
+                a.download = 'target-trade-orders.csv'; a.click();
+              },
+            }"
+          >
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 class="td-title text-3xl font-semibold text-gray-900 dark:text-white">Trade orders</h1>
+                <p class="text-sm text-gray-500">Every stockist order from the portal, CSV uploads, the AI order reader and your sales reps.</p>
+              </div>
+              <div class="flex gap-2">
+                <button x-show="selected.length" @click="approveSelected()" class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white" x-text="'Approve ' + selected.length + ' selected'"></button>
+                <button @click="exportCsv()" class="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">Export CSV</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
+              <template x-for="k in [['all','All orders'],['pending approval','Pending approval'],['new','New'],['picking','Picking'],['dispatched','Dispatched']]" :key="k[0]">
+                <button @click="status = k[0]" :class="status === k[0] ? 'border-ink ring-1 ring-ink dark:border-white dark:ring-white' : 'border-gray-200 dark:border-gray-800'" class="rounded-2xl border bg-white p-4 text-left dark:bg-white/[0.03]">
+                  <p class="text-xs text-gray-500" x-text="k[1]"></p>
+                  <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="k[0] === 'all' ? orders.length : count(k[0])"></p>
+                </button>
+              </template>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+              <div class="flex flex-wrap gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+                <input type="search" x-model="search" placeholder="Order, stockist, PO or ERP ref" class="h-10 w-64 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
+                <select x-model="customer" class="h-10 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                  <option value="all">All stockists</option>
+                  <template x-for="c in TD.customers" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
+                </select>
+                <select x-model="status" class="h-10 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                  <option value="all">All statuses</option>
+                  <template x-for="s in ['pending approval','new','approved','picking','dispatched','delivered','cancelled']" :key="s"><option :value="s" x-text="TD.statusLabel(s)"></option></template>
+                </select>
+                <select x-model="channel" class="h-10 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                  <option value="all">All channels</option>
+                  <template x-for="c in channels" :key="c"><option :value="c" x-text="c"></option></template>
+                </select>
+                <span class="ml-auto self-center text-sm text-gray-500" x-text="filtered.length + ' orders · ' + TD.gbp(filtered.reduce((s, o) => s + o.total, 0)) + ' ex VAT'"></span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-gray-200 text-left text-xs text-gray-500 uppercase dark:border-gray-800">
+                      <th class="w-10 px-4 py-3"></th><th class="py-3">Order</th><th>Stockist</th><th>Lines</th><th>Channel</th><th class="text-right">Net value</th><th class="text-center">Status</th><th>ERP</th><th class="px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="o in filtered" :key="o.id">
+                      <tr class="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.02]">
+                        <td class="px-4"><input type="checkbox" :value="o.id" x-model="selected" :disabled="o.status !== 'pending approval'" class="rounded text-brand-500 disabled:opacity-30" /></td>
+                        <td class="py-3"><a :href="'order-detail.html?id=' + o.id" class="font-semibold text-gray-900 hover:text-brand-600 dark:text-white" x-text="o.id"></a><p class="text-xs text-gray-500" x-text="TD.date(o.date) + ' ' + o.time + ' · ' + o.po"></p></td>
+                        <td><p class="font-medium" x-text="o.customer"></p><p class="text-xs text-gray-500" x-text="o.city"></p></td>
+                        <td>
+                          <div class="flex -space-x-2">
+                            <template x-for="i in o.items.slice(0, 3)" :key="i.sku + i.variant"><img :src="i.image" :alt="i.name" class="h-8 w-8 rounded-full border-2 border-white bg-gray-100 object-contain dark:border-gray-900" /></template>
+                            <span class="flex h-8 items-center pl-3 text-xs text-gray-500" x-text="o.lines + ' / ' + o.units + 'u'"></span>
+                          </div>
+                        </td>
+                        <td class="text-xs" x-text="o.channel"></td>
+                        <td class="text-right font-semibold text-gray-900 dark:text-white" x-text="TD.gbp(o.total)"></td>
+                        <td class="text-center"><span :class="TD.statusCss(o.status)" class="rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap" x-text="TD.statusLabel(o.status)"></span></td>
+                        <td class="text-xs"><span :class="o.synced ? 'text-green-700' : 'text-orange-600'" x-text="o.synced ? (o.erpRef || 'Synced') : 'Not synced'"></span></td>
+                        <td class="px-4 text-right whitespace-nowrap">
+                          <button x-show="o.status === 'pending approval'" @click="approve(o)" class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-500">Approve</button>
+                          <button x-show="o.status !== 'pending approval' && !o.synced" @click="sync(o)" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold dark:border-gray-600">Push to ERP</button>
+                          <a :href="'order-detail.html?id=' + o.id" class="ml-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-600 hover:underline">View</a>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+                <p x-show="!filtered.length" class="py-12 text-center text-gray-500">No orders match those filters.</p>
+              </div>
+            </div>
+
+            <div x-show="toast" x-transition class="fixed right-6 bottom-6 z-[99999] rounded-lg bg-ink px-4 py-3 text-sm text-white shadow-2xl" style="display: none" x-text="toast"></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

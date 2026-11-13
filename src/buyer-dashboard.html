@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Home | Target Darts Trade Portal</title>
+  </head>
+  <body
+    x-data="{
+      page: 'buyerDashboard',
+      loaded: true,
+      darkMode: false,
+      quickSku: '',
+      quickQty: 1,
+      quickMsg: '',
+      get orders() { return TD.ordersFor(TD.buyer.companyId); },
+      get recent() { return this.orders.slice(0, 5); },
+      get open() { return this.orders.filter(o => ['new','pending approval','approved','picking','dispatched'].includes(o.status)); },
+      get bestsellers() { return TD.catalog.filter(p => p.bestseller && p.stock > 0).slice(0, 8); },
+      get heroDarts() { return [['11117', 2], ['11191', 1], ['11206', 1]].map(([s, i]) => ({ ...TD.bySku[s], hero: TD.bySku[s].images[i] })); },
+      get playerTiles() {
+        return TD.players.slice(0, 6).map(pl => ({ ...pl, product: TD.catalog.find(p => p.player === pl.name && p.category === 'Steel Tip Darts') || TD.catalog.find(p => p.player === pl.name) }));
+      },
+      get suggestions() {
+        const q = this.quickSku.trim().toLowerCase();
+        if (q.length < 2) return [];
+        return TD.catalog.filter(p => (p.sku + ' ' + p.name).toLowerCase().includes(q)).slice(0, 6);
+      },
+      pick(p) { this.quickSku = p.sku; this.quickQty = p.moq; },
+      quickAdd() {
+        const p = TD.bySku[this.quickSku.trim()] || TD.catalog.find(x => x.name.toLowerCase() === this.quickSku.trim().toLowerCase());
+        if (!p) { this.quickMsg = 'No product found for ' + this.quickSku; return; }
+        TD.cart.add(p.sku, +this.quickQty || p.moq, p.variants.length ? p.variants[0].values[0] : '');
+        this.quickMsg = (+this.quickQty || p.moq) + ' x ' + p.name + ' added to basket';
+        this.quickSku = ''; this.quickQty = 1;
+      },
+      reorder(o) { o.items.forEach(i => TD.cart.add(i.sku, i.qty, i.variant)); this.quickMsg = o.id + ' added to basket'; },
+    }"
+    x-init="
+      darkMode = JSON.parse(localStorage.getItem('darkMode'));
+      $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/preloader.html"></include>
+
+    <div class="flex min-h-screen flex-col bg-white dark:bg-gray-900">
+      <include src="./partials/buyer-nav.html"></include>
+
+      <!-- Hero -->
+      <section class="relative overflow-hidden bg-ink text-white">
+        <div class="mx-auto grid max-w-screen-2xl items-center gap-6 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-14">
+          <div class="relative z-10">
+            <p class="text-xs font-semibold tracking-[0.25em] text-brand-400 uppercase" x-text="TD.buyer.tier + ' stockist · ' + TD.buyer.companyId"></p>
+            <h1 class="font-display mt-3 text-5xl leading-none tracking-wide uppercase lg:text-6xl">Welcome back,<br /><span x-text="TD.buyer.name.split(' ')[0]"></span></h1>
+            <p class="mt-4 max-w-md text-white/70">Your full Target range at <span class="text-white" x-text="TD.buyer.tier"></span> trade prices, live stock, and every order in one place.</p>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href="buyer-products.html" class="bg-brand-500 px-6 py-3 text-xs font-bold tracking-wider uppercase hover:bg-brand-600">Shop the trade range</a>
+              <a href="buyer-products.html?player=Luke%20Littler" class="border border-white/40 px-6 py-3 text-xs font-bold tracking-wider uppercase hover:bg-white hover:text-ink">Luke Littler range</a>
+            </div>
+          </div>
+          <div class="relative grid grid-cols-3 gap-3">
+            <template x-for="(p, i) in heroDarts" :key="p.sku">
+              <a :href="'buyer-product-detail.html?sku=' + p.sku" :class="i === 1 ? 'mt-8' : ''" class="block aspect-square overflow-hidden bg-white">
+                <img :src="p.hero" :alt="p.name" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" />
+              </a>
+            </template>
+          </div>
+        </div>
+      </section>
+
+      <main class="flex-1 py-10">
+        <div class="mx-auto max-w-screen-2xl space-y-12 px-4 sm:px-6 lg:px-8">
+          <!-- account figures -->
+          <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="border border-gray-200 p-5 dark:border-gray-800">
+              <p class="text-xs tracking-wider text-gray-500 uppercase">Credit available</p>
+              <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="TD.gbp(TD.buyer.creditLimit - TD.buyer.balance)"></p>
+              <div class="mt-2 h-1.5 bg-gray-100 dark:bg-gray-800"><div class="h-1.5 bg-ink dark:bg-white" :style="'width:' + Math.round(TD.buyer.balance / TD.buyer.creditLimit * 100) + '%'"></div></div>
+              <p class="mt-1 text-[11px] text-gray-500" x-text="TD.gbp(TD.buyer.balance) + ' of ' + TD.gbp(TD.buyer.creditLimit) + ' used'"></p>
+            </div>
+            <div class="border border-gray-200 p-5 dark:border-gray-800">
+              <p class="text-xs tracking-wider text-gray-500 uppercase">Open orders</p>
+              <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="open.length"></p>
+              <p class="mt-1 text-[11px] text-gray-500" x-text="TD.gbp(open.reduce((s, o) => s + o.total, 0)) + ' ex VAT in progress'"></p>
+            </div>
+            <div class="border border-gray-200 p-5 dark:border-gray-800">
+              <p class="text-xs tracking-wider text-gray-500 uppercase">Spend this year</p>
+              <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="TD.gbp(TD.customer(TD.buyer.companyId).ytd)"></p>
+              <p class="mt-1 text-[11px] text-green-700" x-text="TD.buyer.tier + ' tier secured for 2027'"></p>
+            </div>
+            <div class="border border-gray-200 p-5 dark:border-gray-800">
+              <p class="text-xs tracking-wider text-gray-500 uppercase">Your discount</p>
+              <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="TD.buyer.discount + '% + volume'"></p>
+              <p class="mt-1 text-[11px] text-gray-500" x-text="'Up to ' + (TD.buyer.discount + TD.volumeBreaks[TD.volumeBreaks.length - 1].discount) + '% on 60+ unit lines'"></p>
+            </div>
+          </section>
+
+          <section class="grid gap-8 lg:grid-cols-3">
+            <!-- recent orders -->
+            <div class="lg:col-span-2">
+              <div class="mb-3 flex items-end justify-between">
+                <h2 class="td-heading text-2xl text-gray-900 dark:text-white">Recent orders</h2>
+                <a href="buyer-orders.html" class="text-sm font-semibold text-brand-600 hover:underline">View all</a>
+              </div>
+              <div class="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+                <template x-for="o in recent" :key="o.id">
+                  <div class="flex flex-wrap items-center gap-4 py-3">
+                    <div class="flex -space-x-3">
+                      <template x-for="i in o.items.slice(0, 3)" :key="i.sku + i.variant"><img :src="i.image" :alt="i.name" class="h-11 w-11 rounded-full border-2 border-white bg-[#f4f4f4] object-contain dark:border-gray-900" /></template>
+                    </div>
+                    <div class="min-w-40 flex-1">
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white" x-text="o.id"></p>
+                      <p class="text-xs text-gray-500" x-text="TD.date(o.date) + ' · ' + o.units + ' units'"></p>
+                    </div>
+                    <span :class="TD.statusCss(o.status)" class="rounded-full px-2.5 py-1 text-xs font-semibold" x-text="TD.statusLabel(o.status)"></span>
+                    <p class="w-24 text-right text-sm font-bold text-gray-900 dark:text-white" x-text="TD.gbp(o.total)"></p>
+                    <button @click="reorder(o)" class="text-xs font-semibold text-gray-600 uppercase underline hover:text-brand-600 dark:text-gray-400">Reorder</button>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- quick order + account manager -->
+            <div class="space-y-6">
+              <div class="bg-[#f4f4f4] p-6 dark:bg-gray-800">
+                <h2 class="td-heading text-xl text-gray-900 dark:text-white">Quick order</h2>
+                <p class="mt-1 text-xs text-gray-500">Type a SKU or product name.</p>
+                <div class="relative mt-3">
+                  <input x-model="quickSku" @keydown.enter="quickAdd()" placeholder="e.g. 11117 or Swiss Point" class="h-11 w-full border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
+                  <div x-show="suggestions.length && !TD.bySku[quickSku]" class="absolute z-20 mt-1 w-full border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                    <template x-for="s in suggestions" :key="s.sku">
+                      <button @click="pick(s)" class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800">
+                        <img :src="s.image" :alt="s.name" class="h-8 w-8 object-contain" /><span class="flex-1" x-text="s.name"></span><span class="text-xs text-gray-400" x-text="s.sku"></span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+                <div class="mt-2 flex gap-2">
+                  <input type="number" x-model="quickQty" min="1" class="h-11 w-20 border border-gray-300 text-center text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
+                  <button @click="quickAdd()" class="h-11 flex-1 bg-ink text-xs font-bold tracking-wider text-white uppercase hover:bg-brand-500">Add to basket</button>
+                </div>
+                <p x-show="quickMsg" class="mt-2 text-xs text-green-700" x-text="quickMsg"></p>
+                <a href="buyer-bulk-upload.html" class="mt-3 block text-xs font-semibold text-brand-600 hover:underline">Ordering lots of lines? Paste a list or upload a CSV</a>
+              </div>
+              <div class="border border-gray-200 p-6 dark:border-gray-800">
+                <p class="text-xs tracking-wider text-gray-500 uppercase">Your account manager</p>
+                <div class="mt-3 flex items-center gap-3">
+                  <span class="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">JM</span>
+                  <div>
+                    <p class="font-semibold text-gray-900 dark:text-white" x-text="TD.admin.name"></p>
+                    <p class="text-xs text-gray-500" x-text="TD.admin.role"></p>
+                  </div>
+                </div>
+                <p class="mt-3 text-xs text-gray-500">Talk to your account manager about pre-orders, POS material or new launches.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- bestsellers -->
+          <section>
+            <div class="mb-4 flex items-end justify-between">
+              <h2 class="td-heading text-2xl text-gray-900 dark:text-white">Best sellers this month</h2>
+              <a href="buyer-products.html" class="text-sm font-semibold text-brand-600 hover:underline">Shop all</a>
+            </div>
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <template x-for="p in bestsellers" :key="p.sku">
+                <a :href="'buyer-product-detail.html?sku=' + p.sku" class="group">
+                  <div class="aspect-square bg-[#f4f4f4] dark:bg-gray-800"><img :src="p.image" :alt="p.name" loading="lazy" class="h-full w-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105 dark:mix-blend-normal" /></div>
+                  <p class="mt-2 text-[11px] tracking-wide text-gray-500 uppercase" x-text="p.player || p.category"></p>
+                  <p class="font-display text-base leading-tight tracking-wide text-gray-900 uppercase group-hover:text-brand-600 dark:text-white" x-text="p.name"></p>
+                  <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200"><span x-text="TD.gbp(TD.netPrice(p, TD.buyer.discount, 1))"></span> <span class="text-xs font-normal text-gray-500" x-text="'RRP ' + TD.gbp(p.rrp)"></span></p>
+                </a>
+              </template>
+            </div>
+          </section>
+
+          <!-- players -->
+          <section>
+            <h2 class="td-heading mb-4 text-2xl text-gray-900 dark:text-white">Shop by player</h2>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <template x-for="t in playerTiles" :key="t.name">
+                <a :href="'buyer-products.html?player=' + encodeURIComponent(t.name)" class="group relative block aspect-[4/5] overflow-hidden bg-[#f4f4f4] dark:bg-gray-800">
+                  <img :src="t.product.image" :alt="t.name" class="h-full w-full object-contain pb-12 mix-blend-multiply transition duration-500 group-hover:scale-105 dark:mix-blend-normal" />
+                  <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3 pt-10">
+                    <p class="font-display text-lg leading-tight tracking-wide text-white uppercase" x-text="t.name"></p>
+                    <p class="text-[11px] text-white/70" x-text="t.count + ' products'"></p>
+                  </div>
+                </a>
+              </template>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <include src="./partials/buyer-footer.html"></include>
+    </div>
+  </body>
+</html>
